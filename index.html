@@ -9,21 +9,23 @@
 			margin: 0;
 			padding: 0;
 		}
-		#canvasAction{
+
+		#canvasAction {
 			position: absolute;
 			left: 0;
 			top: 0;
 		}
 
 	</style>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.min.js"></script>
+
 </head>
 
-<body>
+<body oncontextmenu="return false;">
 	<canvas id="canvasAvatar"></canvas>
-	<canvas id="canvasAction"></canvas>
 	<script>
 		//数据点
-		const dots = [
+		let dots = [
 			[234.749359, 563.195007],
 			[235.711304, 598.633179],
 			[235.314331, 634.770752],
@@ -132,46 +134,207 @@
 			[625.343689, 584.685852]
 		]
 
+		let pairs = {
+			0: 32,
+			32: 0,
+			1: 31,
+			31: 1,
+			2: 30,
+			30: 2,
+			3: 29,
+			29: 3,
+			4: 28,
+			28: 4,
+			5: 27,
+			27: 5,
+			6: 26,
+			26: 6,
+			7: 25,
+			25: 7,
+			8: 24,
+			24: 8,
+			9: 23,
+			23: 9,
+			10: 22,
+			22: 10,
+			11: 21,
+			21: 11,
+			12: 20,
+			20: 12,
+			13: 19,
+			19: 13,
+			14: 18,
+			18: 14,
+			15: 17,
+			17: 15,
+			33: 42,
+			42: 33,
+			34: 41,
+			41: 34,
+			35: 40,
+			40: 35,
+			36: 39,
+			39: 36,
+			37: 38,
+			38: 37,
+			47: 51,
+			51: 47,
+			48: 50,
+			50: 48,
+			52: 61,
+			61: 52,
+			53: 60,
+			60: 53,
+			54: 59,
+			59: 54,
+			55: 58,
+			58: 55,
+			56: 63,
+			63: 56,
+			57: 62,
+			62: 57,
+			64: 71,
+			71: 64,
+			65: 70,
+			70: 65,
+			66: 69,
+			69: 66,
+			72: 75,
+			75: 72,
+			73: 76,
+			76: 73,
+			74: 77,
+			77: 74,
+			78: 79,
+			79: 78,
+			80: 81,
+			81: 80,
+			82: 83,
+			83: 82,
+			84: 90,
+			90: 84,
+			85: 89,
+			89: 85,
+			86: 88,
+			88: 86,
+			91: 95,
+			95: 91,
+			92: 94,
+			94: 92,
+			96: 100,
+			100: 96,
+			97: 99,
+			99: 97,
+			101: 103,
+			103: 101,
+			104: 105,
+			105: 104,
+			108: 109,
+			109: 108,
+			110: 111,
+			111: 110
+		}
+
 	</script>
 	<script>
 		//绘制头像的画布
 		const canvasAvatar = document.getElementById("canvasAvatar");
 		//绘制控制点的画布
-		const canvasAction = document.getElementById("canvasAction");
 		const ctx1 = canvasAvatar.getContext("2d");
-		const ctx2 = canvasAction.getContext("2d");
+		const textureDot = PIXI.Texture.from('dot.png');
+		const textureDotActive = PIXI.Texture.from('dot_active.png');
+		let width, height;
+
 		// 加载图片
 		const image = new Image();
 		image.src = "./Template.jpg";
 		image.onload = function (e) {
 			// 获取图片宽高
-			let width = image.width;
-			let height = image.height
+			width = image.width;
+			height = image.height
 			// 设置画布大小
 			canvasAvatar.width = width;
-			canvasAction.width = width;
 			canvasAvatar.height = height;
-			canvasAction.height = height;
 			// 绘制图片
 			ctx1.drawImage(image, 0, 0, width, height);
-			//绘制数据点
-			dots.forEach(dot => {
-				ctx2.beginPath();
-				ctx2.arc(dot[0], dot[1], 5, 0, 2 * Math.PI);
-				ctx2.fill();
-			})
+
+
 			// 读取画布像素信息，可在控制台查看数据格式
 			let data = ctx1.getImageData(0, 0, width, height);
 			console.log(data);
 
-			//添加事件
-			canvasAction.addEventListener("mousemove", e => {
+			//绘制数据点
+			const app = new PIXI.Application({
+				width: width,
+				height: height,
+				transparent: true,
+				antialias: true,
+			});
+			app.view.id = "canvasAction";
+			document.body.appendChild(app.view);
 
+			dots.forEach((dot, i) => {
+				createDot(dot[0], dot[1], i)
 			})
 
+			function createDot(x, y, i) {
+				const dotItem = new PIXI.Sprite(textureDot);
+				dotItem.interactive = true;
+				dotItem.buttonMode = true;
+				dotItem.anchor.set(0.5);
+				dotItem.scale.set(0.5);
+				dotItem.select = false;
+				dotItem.index = i;
+				dotItem
+					.on('pointerdown', onDragStart)
+					.on('pointerup', onDragEnd)
+					.on('pointerupoutside', onDragEnd)
+					.on('pointermove', onDragMove);
+				dotItem.x = x;
+				dotItem.y = y;
+				app.stage.addChild(dotItem);
+			}
+
+			function onDragStart(event) {
+				let mouseRight = event.data.originalEvent.which === 3;
+				if (mouseRight) {
+					// 选中
+					this.select = !this.select;
+					this.texture = this.select ? textureDotActive : textureDot;
+					// 选中对称坐标
+					let pair = app.stage.children.find(dot => dot.index === pairs[this.index])
+					pair.select = this.select;
+					pair.texture = this.select ? textureDotActive : textureDot;
+					return;
+				}
+				if (this.select) {
+					this.data = event.data;
+					this.alpha = 0.5;
+					this.dragging = true;
+				}
+			}
+
+			function onDragEnd() {
+				this.alpha = 1;
+				this.dragging = false;
+				// set the interaction data to null
+				this.data = null;
+			}
+
+			function onDragMove() {
+				if (this.dragging) {
+					const newPosition = this.data.getLocalPosition(this.parent);
+					this.x = newPosition.x;
+					this.y = newPosition.y;
+					console.log(
+						app.stage.children.map(dot => {
+							return [dot.x, dot.y]
+						})
+					);
+
+				}
+			}
 		}
-
-
 
 	</script>
 </body>
